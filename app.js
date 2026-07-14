@@ -6,14 +6,13 @@ const errorHandler = require("./middleware/error-handler");
 
 const app = express();
 
-app.use(express.json());
-
 global.user_id = null
 global.users = []
 global.tasks = []
 
-app.use("/api/users", userRouter);
+app.use(express.json());
 
+app.use("/api/users", userRouter);
 app.use("/api", timeRouter);
 
 app.get("/", (req, res) => {

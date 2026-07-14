@@ -46,14 +46,6 @@ app.use((req, res, next) => {
 
 app.use("/", dogsRouter);// Do not remove this line
 
-app.post("/adopt", (req, res) => {
-  const { dog } = req.body;
-
-  res.json({
-    adopted: dog
-  });
-});
-
 app.use((req, res) => {
   res.status(404).json({
     error: "Route not found",
