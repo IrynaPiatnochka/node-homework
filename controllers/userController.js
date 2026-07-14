@@ -21,7 +21,7 @@ const logon = (req, res) => {
     });
     if (!user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({
-            message: "Invalid email or password"
+            error: "Invalid email or password"
         });
     }
 
@@ -35,7 +35,7 @@ const logon = (req, res) => {
 
 const logoff = (req, res) => {
     global.user_id = null;
-    res.status(200);
+    res.sendStatus(StatusCodes.OK);
 };
 
 module.exports = { register, logon, logoff };
