@@ -4,12 +4,28 @@ const register = (req, res) => {
 
     const { name, email, password } = req.body;
 
-    const user = { name, email, password };
+    if (!name || !email || !password) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "Missing required fields",
+      });
+    }
 
-    global.users.push(user);
-    global.user_id = user;
+    const existingUser = global.users.find(
+      (user) => user.email === email
+    );
 
-    res.status(StatusCodes.CREATED).json({ name, email });
+    if (existingUser) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "Email already exists",
+      });
+    }
+
+    const newUser = { name, email, password };
+
+    global.users.push(newUser);
+    global.user_id = newUser;
+
+    return res.status(StatusCodes.CREATED).json({ name, email });
 };
 
 const logon = (req, res) => {
@@ -21,15 +37,15 @@ const logon = (req, res) => {
     });
     if (!user) {
         return res.status(StatusCodes.UNAUTHORIZED).json({
-            error: "Invalid email or password"
+            error: "Invalid email or password",
         });
     }
 
     global.user_id = user;
 
-    res.status(StatusCodes.OK).json({
+    return res.status(StatusCodes.OK).json({
         name:user.name,
-        email: user.email
+        email: user.email,
     });
 };
 
