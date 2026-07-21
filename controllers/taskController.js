@@ -50,7 +50,7 @@ const index = ( req, res) => {
     return sanitizedTask;
   });
 
-  res.status(StatusCodes.OK).json(sanitizedTasks);
+  return res.status(StatusCodes.OK).json(sanitizedTasks);
 };
 
 
