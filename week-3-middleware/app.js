@@ -2,6 +2,8 @@ const express = require("express");
 const dogsRouter = require("./routes/dogs");
 const { randomUUID } = require("crypto");
 const path = require("path");
+const authMiddleware = require("./middleware/auth");
+const taskRouter = require("./routes/taskRoutes");
 
 const app = express();
 
@@ -49,6 +51,8 @@ app.use((req, res, next) => {
 
 // Routes
 app.use("/", dogsRouter);// Do not remove this line
+
+app.use("/api/tasks", authMiddleware, taskRouter);
 
 //8. 404 handler
 app.use((req, res) => {
