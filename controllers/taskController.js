@@ -9,8 +9,23 @@ const taskCounter = () => {
     return taskId;
 };
 
+// Checks login
+const requireUser = (res) => {
+  if (!global.user_id) {
+    res.status(StatusCodes.UNAUTHORIZED).json({
+      error: "Unauthorized",
+    });
+    return false;
+  }
+
+  return true;
+};
+
 // Create controller
 const create = (req, res) => {
+
+  if (!requireUser(res)) return;
+  
   if (!req.body) req.body = {};
 
   
@@ -35,6 +50,9 @@ const create = (req, res) => {
 
 // Create Index
 const index = ( req, res) => {
+
+  if (!requireUser(res)) return;
+
   const userTasks = global.tasks.filter(
     (task) => task.userId === global.user_id.email,
   );
@@ -56,6 +74,9 @@ const index = ( req, res) => {
 
 // Show controller
 const show = (req, res) => {
+
+  if (!requireUser(res)) return;
+
   const taskId = parseInt(req.params?.id);
 
   if (isNaN(taskId)) {
@@ -84,6 +105,9 @@ const show = (req, res) => {
 
 // Update controller
 const update = (req, res) => {
+
+  if (!requireUser(res)) return;
+
   const { error, value } = patchTaskSchema.validate(req.body);
 
   if (error) {
@@ -120,6 +144,9 @@ const update = (req, res) => {
 
 // Delete controller
 const deleteTask = (req, res) => {
+
+  if (!requireUser(res)) return;
+
   const taskId = parseInt(req.params?.id);
 
   if (isNaN(taskId)) {
@@ -146,4 +173,4 @@ const deleteTask = (req, res) => {
   return res.status(StatusCodes.OK).json(sanitizedTask);
 };
 
-module.exports = { create, index, show, update, deleteTask };
+module.exports = { create, index, show, update, deleteTask, };
