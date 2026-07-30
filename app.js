@@ -9,8 +9,6 @@ const taskRouter = require("./routes/taskRoutes");
 const app = express();
 
 global.user_id = null
-global.users = []
-global.tasks = []
 
 app.use(express.json());
 
