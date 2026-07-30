@@ -9,7 +9,7 @@ const {
   deleteTask,
 } = require("../controllers/taskController");
 
-const authMiddleware = require("../middleware/authMiddleware");
+const authMiddleware = require("../middleware/auth");
 
 router.use(authMiddleware);
 
