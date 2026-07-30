@@ -19,7 +19,7 @@ const comparePassword = async(inputPassword, storedHash) => {
   return crypto.timingSafeEqual(keyBuffer, derivedKey);
 }
 
-const register = async (req, res) => {
+const register = async (req, res, next) => {
     if (!req.body) req.body = {};
     const { error, value } = userSchema.validate(req.body, { abortEarly: false });
     if (error) return res.status(400).json({ message: error.message });
@@ -57,7 +57,8 @@ const register = async (req, res) => {
 };
 
 
-const logon = async(req, res) => {
+const logon = async(req, res, next) => {
+  try {
     const { email, password} = req.body;
 
     const result = await pool.query(
@@ -90,7 +91,11 @@ const logon = async(req, res) => {
       name:user.name,
       email: user.email,
     });
+  } catch (e) {
+    return next(e);
+  }
 };
+
 
 const logoff = (req, res) => {
     global.user_id = null;

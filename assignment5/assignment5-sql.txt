@@ -66,7 +66,7 @@ FROM employees e
 JOIN orders o ON e.employee_id = o.employee_id
 GROUP BY e.employee_id, e.first_name, e.last_name
 HAVING COUNT(o.order_id) > 5
-ORDER BY e.last_name;
+ORDER BY e.last_name ASC;
 
 
 /////////////////////////////////////////////////////////////////////
