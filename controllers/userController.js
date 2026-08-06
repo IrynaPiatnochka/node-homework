@@ -1,6 +1,6 @@
 const { userSchema } = require("../validation/userSchema");
 const { StatusCodes } = require("http-status-codes");
-const pool = require("../db/pg-pool");
+const prisma = require("../db/prisma");
 
 const crypto = require("crypto");
 const util = require("util");
@@ -28,51 +28,59 @@ const register = async (req, res, next) => {
 
     const hashedPassword = await hashPassword(password);
 
-    let user;
+    let user = null;
 
     try {
-      user = await pool.query(
-        `INSERT INTO users (email, name, hashed_password)
-         VALUES ($1, $2, $3)
-         RETURNING id, email, name`,
-        [email, name, hashedPassword]
-      );
+      user = await prisma.user.create({
+        data: {
+          name,
+          email,
+          hashed_password: hashedPassword,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+        },
+      });
 
-    } catch (e) {
-      if (e.code === "23505") {
+    } catch (err) {
+      if (
+        err.name === "PrismaClientKnownRequestError" && err.code === "P2002")
+      {
         return res.status(StatusCodes.BAD_REQUEST).json({
           error: "Email already exists",
         });
       }
 
-      return next(e);
+      return next(err);
     }
 
-    global.user_id = user.rows[0].id;
+    global.user_id = user.id;
 
     return res.status(StatusCodes.CREATED).json({
-      name: user.rows[0].name,
-      email: user.rows[0].email,
+      name: user.name,
+      email: user.email,
     });
 };
 
 
 const logon = async(req, res, next) => {
   try {
-    const { email, password} = req.body;
+    let { email, password} = req.body;
+    email = email.toLowerCase();
 
-    const result = await pool.query(
-      "SELECT * FROM users WHERE email = $1",
-      [email]
-    );
+    const user = await prisma.user.findUnique({
+      where: {
+        email,
+      },
+    });
 
-    if (result.rows.length === 0) {
+    if (!user) {
       return res.status(StatusCodes.UNAUTHORIZED).json({
         error: "Invalid email or password",
       });
     }
-
-    const user = result.rows[0];
 
     const passwordMatch = await comparePassword(
       password,
