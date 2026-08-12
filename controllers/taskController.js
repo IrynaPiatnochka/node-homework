@@ -106,15 +106,14 @@ const show = async (req, res, next) => {
       },
     });
 
-
-    if (!task) {
-      return res.status(StatusCodes.NOT_FOUND).json({
-        error: "Task not found",
-      });
-    }
-
     return res.status(StatusCodes.OK).json(task);
   } catch (e) {
+    if (e.code === "P2025") { 
+      return res.status(StatusCodes.NOT_FOUND).json({ 
+        error: "Task not found", 
+      }); 
+    }
+
     return next(e);
   }
 };
