@@ -35,7 +35,7 @@ const register = async (req, res, next) => {
         data: {
           name,
           email,
-          hashed_password: hashedPassword,
+          hashedPassword,
         },
         select: {
           id: true,
@@ -84,7 +84,7 @@ const logon = async(req, res, next) => {
 
     const passwordMatch = await comparePassword(
       password,
-      user.hashed_password
+      user.hashedPassword
     );
 
     if (!passwordMatch) {

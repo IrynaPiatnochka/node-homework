@@ -17,7 +17,6 @@ const requireUser = (res) => {
 // Create controller
 const create = async (req, res, next) => {
   try {
-
     if (!requireUser(res)) return;
     if (!req.body) req.body = {};
 
@@ -30,20 +29,20 @@ const create = async (req, res, next) => {
     const task = await prisma.task.create({
       data: {
         title: value.title,
-        is_completed: value.isCompleted,
-        user_id: global.user_id,
+        isCompleted: value.isCompleted,
+        userId: global.user_id,
       },
       select: {
         id: true,
         title: true,
-        is_completed: true,
+        isCompleted: true,
       },
     });
 
     return res.status(StatusCodes.CREATED).json({
       id: task.id,
       title: task.title,
-      isCompleted: task.is_completed,
+      isCompleted: task.isCompleted,
     });
   } catch (e) {
     return next(e);
@@ -58,12 +57,12 @@ const index = async ( req, res, next) => {
 
     const tasks = await prisma.task.findMany({
       where: {
-        user_id: global.user_id,
+        userId: global.user_id,
       },
       select: {
         id: true,
         title: true,
-        is_completed: true,
+        isCompleted: true,
       },
     });
 
@@ -95,15 +94,15 @@ const show = async (req, res, next) => {
 
     const task = await prisma.task.findUnique({
       where: {
-        id_user_id: {
+        id_userId: {
           id: taskId,
-          user_id: global.user_id,
+          userId: global.user_id,
         },
       },
       select: {
         id: true,
         title: true,
-        is_completed: true,
+        isCompleted: true,
       },
     });
 
@@ -142,23 +141,18 @@ const update = async (req, res, next) => {
       });
     }
 
-    if (value.isCompleted !== undefined) {
-      value.is_completed = value.isCompleted;
-      delete value.isCompleted;
-    }
-
     const updatedTask = await prisma.task.update({
       where: {
-        id_user_id: {
+        id_userId: {
           id: taskId,
-          user_id: global.user_id,
+          userId: global.user_id,
         },
       },
       data: value,
       select: {
         id: true,
         title: true,
-        is_completed: true,
+        isCompleted: true,
       },
     });
 
@@ -191,15 +185,15 @@ const deleteTask = async (req, res, next) => {
 
     const deletedTask = await prisma.task.delete({
       where: {
-        id_user_id: {
+        id_userId: {
           id: taskId,
-          user_id: global.user_id,
+          userId: global.user_id,
         },
       },
       select: {
         id: true,
         title: true,
-        is_completed: true,
+        isCompleted: true,
       },
     });
 
