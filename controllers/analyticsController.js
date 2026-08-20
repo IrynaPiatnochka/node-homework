@@ -62,6 +62,16 @@ const getUserAnalytics = async (req, res, next) => {
       take: 10,
     });
 
+    const formattedRecentTasks = recentTasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      isCompleted: task.isCompleted,
+      priority: task.priority,
+      createdAt: task.createdAt,
+      userId: task.userId,
+      User: task.user,
+    }));
+
     const oneWeekAgo = new Date();
     oneWeekAgo.setDate(oneWeekAgo.getDate() - 7);
 
@@ -80,7 +90,7 @@ const getUserAnalytics = async (req, res, next) => {
 
     return res.status(StatusCodes.OK).json({
       taskStats,
-      recentTasks,
+      recentTasks, formattedRecentTasks,
       weeklyProgress,
     });
   } catch (e) {
@@ -143,7 +153,7 @@ const getUsersWithStats = async (req, res, next) => {
       _count: {
         Task: user._count.tasks,
       },
-      tasks: user.tasks,
+      Task: user.tasks,
     }));
 
     const totalUsers = await prisma.user.count();

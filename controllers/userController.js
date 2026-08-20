@@ -102,7 +102,7 @@ const register = async (req, res, next) => {
         err.name === "PrismaClientKnownRequestError" && err.code === "P2002")
       {
         return res.status(StatusCodes.BAD_REQUEST).json({
-          error: "Email already exists",
+          error: "Email already registered",
         });
       }
 
