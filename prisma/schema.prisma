@@ -7,56 +7,12 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-model customers {
-  customer_id   Int      @id @default(autoincrement())
-  customer_name String
-  contact       String?
-  street        String?
-  city          String?
-  postal_code   String?
-  country       String?
-  phone         String?
-  orders        orders[]
-}
-
-model employees {
-  employee_id Int      @id @default(autoincrement())
-  first_name  String
-  last_name   String
-  phone       String?
-  orders      orders[]
-}
-
-model line_items {
-  line_item_id Int      @id @default(autoincrement())
-  order_id     Int
-  product_id   Int
-  quantity     Int
-  orders       orders   @relation(fields: [order_id], references: [order_id], onDelete: NoAction, onUpdate: NoAction)
-  products     products @relation(fields: [product_id], references: [product_id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-model orders {
-  order_id    Int          @id @default(autoincrement())
-  customer_id Int
-  employee_id Int
-  date        String
-  line_items  line_items[]
-  customers   customers    @relation(fields: [customer_id], references: [customer_id], onDelete: NoAction, onUpdate: NoAction)
-  employees   employees    @relation(fields: [employee_id], references: [employee_id], onDelete: NoAction, onUpdate: NoAction)
-}
-
-model products {
-  product_id   Int          @id @default(autoincrement())
-  product_name String
-  price        Float        @db.Real
-  line_items   line_items[]
-}
 
 model Task {
   id           Int      @id @default(autoincrement())
   title        String   @db.VarChar(255)
   isCompleted  Boolean  @default(false) @map("is_completed")
+  priority     String   @default("medium") @db.VarChar(10)
   userId       Int      @map("user_id")
   createdAt    DateTime @default(now()) @db.Timestamp(6) @map("created_at")
   user         User    @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)

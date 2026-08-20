@@ -2,22 +2,10 @@ const prisma = require("../db/prisma");
 const { StatusCodes } = require("http-status-codes");
 const { taskSchema, patchTaskSchema } = require("../validation/taskSchema");
 
-// Checks login
-const requireUser = (res) => {
-  if (!global.user_id) {
-    res.status(StatusCodes.UNAUTHORIZED).json({
-      error: "Unauthorized",
-    });
-    return false;
-  }
-
-  return true;
-};
 
 // Create controller
 const create = async (req, res, next) => {
   try {
-    if (!requireUser(res)) return;
     if (!req.body) req.body = {};
 
     const { error, value } = taskSchema.validate(req.body);
@@ -30,12 +18,14 @@ const create = async (req, res, next) => {
       data: {
         title: value.title,
         isCompleted: value.isCompleted,
+        priority: value.priority,
         userId: global.user_id,
       },
       select: {
         id: true,
         title: true,
         isCompleted: true,
+        priority: true,
       },
     });
 
@@ -43,6 +33,7 @@ const create = async (req, res, next) => {
       id: task.id,
       title: task.title,
       isCompleted: task.isCompleted,
+      priority: task.priority,
     });
   } catch (e) {
     return next(e);
@@ -53,26 +44,71 @@ const create = async (req, res, next) => {
 // Create Index
 const index = async ( req, res, next) => {
   try {
-    if (!requireUser(res)) return;
+    const page = parseInt(req.query.page) || 1;
+    const limit = parseInt(req.query.limit) || 10;
+
+    const skip = (page - 1) * limit;
+
+    const whereClause = {
+      userId: global.user_id,
+    };
+
+    if (req.query.find) {
+      whereClause.title = {
+        contains: req.query.find,
+        mode: "insensitive",
+      };
+    }
 
     const tasks = await prisma.task.findMany({
-      where: {
-        userId: global.user_id,
-      },
+      where: whereClause,
       select: {
         id: true,
         title: true,
         isCompleted: true,
+        priority: true,
+        createdAt: true,
+        user: {
+          select: {
+            name: true,
+            email: true
+          }
+        }
+      },
+      skip: skip,
+      take: limit,
+      orderBy: {
+        createdAt: "desc",
       },
     });
 
-    if (tasks.length === 0) {
-      return res.status(StatusCodes.NOT_FOUND).json({
-        error: "No tasks found",
-      });
-    }
+    const totalTasks = await prisma.task.count({
+      where: whereClause,
+    });
 
-    return res.status(StatusCodes.OK).json(tasks);
+    const pagination = {
+      page,
+      limit,
+      total: totalTasks,
+      pages: Math.ceil(totalTasks / limit),
+      hasNext: page * limit < totalTasks,
+      hasPrev: page > 1,
+    };
+
+
+    const formattedTasks = tasks.map((task) => ({
+      id: task.id,
+      title: task.title,
+      isCompleted: task.isCompleted,
+      priority: task.priority,
+      createdAt: task.createdAt,
+      User: task.user,
+    }));
+
+    return res.status(StatusCodes.OK).json({
+      tasks: formattedTasks,
+      pagination,
+    });
   } catch (e) {
     return next(e);
   }
@@ -82,8 +118,6 @@ const index = async ( req, res, next) => {
 // Show controller
 const show = async (req, res, next) => {
   try {
-    if (!requireUser(res)) return;
-
     const taskId = parseInt(req.params?.id);
 
     if (isNaN(taskId)) {
@@ -92,7 +126,7 @@ const show = async (req, res, next) => {
       });
     }
 
-    const task = await prisma.task.findUnique({
+    const task = await prisma.task.findUniqueOrThrow({
       where: {
         id_userId: {
           id: taskId,
@@ -103,17 +137,71 @@ const show = async (req, res, next) => {
         id: true,
         title: true,
         isCompleted: true,
+        user: {
+          select: {
+            name: true,
+            email: true,
+          },
+        },
       },
     });
 
-    return res.status(StatusCodes.OK).json(task);
+    return res.status(StatusCodes.OK).json({
+      id: task.id,
+      title: task.title,
+      isCompleted: task.isCompleted,
+      User: task.user,
+    });
   } catch (e) {
-    if (e.code === "P2025") { 
-      return res.status(StatusCodes.NOT_FOUND).json({ 
-        error: "Task not found", 
-      }); 
+    if (e.code === "P2025") {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        error: "Task not found",
+      });
     }
 
+    return next(e);
+  }
+};
+
+// Bulk Create
+const bulkCreate = async (req, res, next) => {
+  try {
+    const tasks = req.body?.tasks;
+
+    if (!Array.isArray(tasks) || tasks.length === 0) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "Tasks must be a non-empty array",
+      });
+    }
+
+    const validatedTasks = [];
+
+    for (const task of tasks) {
+      const { error, value } = taskSchema.validate(task);
+
+      if (error) {
+        return res.status(StatusCodes.BAD_REQUEST).json({
+          message: error.message,
+        });
+      }
+
+      validatedTasks.push({
+        title: value.title,
+        isCompleted: value.isCompleted,
+        priority: value.priority,
+        userId: global.user_id,
+      });
+    }
+
+    const result = await prisma.task.createMany({
+      data: validatedTasks,
+    });
+
+    return res.status(StatusCodes.CREATED).json({
+      tasksCreated: result.count,
+      totalRequested: tasks.length,
+    });
+  } catch (e) {
     return next(e);
   }
 };
@@ -122,7 +210,6 @@ const show = async (req, res, next) => {
 // Update controller
 const update = async (req, res, next) => {
   try {
-    if (!requireUser(res)) return;
 
     const { error, value } = patchTaskSchema.validate(req.body);
 
@@ -152,6 +239,7 @@ const update = async (req, res, next) => {
         id: true,
         title: true,
         isCompleted: true,
+        priority: true,
       },
     });
 
@@ -172,7 +260,6 @@ const update = async (req, res, next) => {
 // Delete controller
 const deleteTask = async (req, res, next) => {
   try {
-    if (!requireUser(res)) return;
 
     const taskId = parseInt(req.params.id);
 
@@ -209,4 +296,4 @@ const deleteTask = async (req, res, next) => {
   }
 };
 
-module.exports = { create, index, show, update, deleteTask };
+module.exports = { create, index, show, bulkCreate, update, deleteTask };

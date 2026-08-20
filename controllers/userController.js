@@ -28,21 +28,74 @@ const register = async (req, res, next) => {
 
     const hashedPassword = await hashPassword(password);
 
-    let user = null;
-
     try {
-      user = await prisma.user.create({
-        data: {
-          name,
-          email,
-          hashedPassword,
+      const result = await prisma.$transaction(async (tx) => {
+        const user = await tx.user.create({
+          data: {
+            name,
+            email,
+            hashedPassword,
+          },
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            createdAt: true,
+          },
+        });
+
+        
+      const welcomeTaskData = [
+        {
+          title: "Complete your profile",
+          priority: "medium",
+          userId: user.id,
+        },
+        {
+          title: "Add your first task",
+          priority: "high",
+          userId: user.id,
+        },
+        {
+          title: "Explore the app",
+          priority: "low",
+          userId: user.id,
+        },
+      ];
+
+      await tx.task.createMany({
+        data: welcomeTaskData,
+      });
+
+      const welcomeTasks = await tx.task.findMany({
+        where: {
+          userId: user.id,
+          title: {
+            in: welcomeTaskData.map((task) => task.title),
+          },
         },
         select: {
           id: true,
-          name: true,
-          email: true,
+          title: true,
+          isCompleted: true,
+          userId: true,
+          priority: true,
         },
       });
+
+      return {
+        user,
+        welcomeTasks,
+      };
+    });
+    
+    global.user_id = result.user.id;
+
+    return res.status(StatusCodes.CREATED).json({
+      user: result.user,
+      welcomeTasks: result.welcomeTasks,
+      transactionStatus: "success",
+    });
 
     } catch (err) {
       if (
@@ -55,24 +108,31 @@ const register = async (req, res, next) => {
 
       return next(err);
     }
-
-    global.user_id = user.id;
-
-    return res.status(StatusCodes.CREATED).json({
-      name: user.name,
-      email: user.email,
-    });
-};
+  };
 
 
 const logon = async(req, res, next) => {
   try {
+    if (!req.body) req.body = {};
     let { email, password} = req.body;
+
+    if (!email || !password) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "Email and password are required",
+      });
+    }
+
     email = email.toLowerCase();
 
     const user = await prisma.user.findUnique({
       where: {
         email,
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        hashedPassword: true,
       },
     });
 
@@ -96,6 +156,7 @@ const logon = async(req, res, next) => {
     global.user_id = user.id;
 
     return res.status(StatusCodes.OK).json({
+      id: user.id,
       name:user.name,
       email: user.email,
     });
