@@ -1,10 +1,40 @@
 const { userSchema } = require("../validation/userSchema");
 const { StatusCodes } = require("http-status-codes");
 const prisma = require("../db/prisma");
+const { randomUUID } = require("crypto");
+const jwt = require("jsonwebtoken");
 
 const crypto = require("crypto");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
+
+const cookieFlags = (req) => {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // only when HTTPS is available
+    sameSite: "Strict",
+  };
+};
+
+const setJwtCookie = (req, res, user) => {
+  const payload = {
+    id: user.id,
+    csrfToken: randomUUID(),
+  };
+
+  const token = jwt.sign(
+    payload,
+    process.env.JWT_SECRET,
+    { expiresIn: "1h" }
+  );
+
+  res.cookie("jwt", token, {
+    ...cookieFlags(req),
+    maxAge: 3600000,
+  });
+
+  return payload.csrfToken;
+};
 
 const hashPassword = async(password) => {
   const salt = crypto.randomBytes(16).toString("hex");
@@ -89,12 +119,14 @@ const register = async (req, res, next) => {
       };
     });
     
-    global.user_id = result.user.id;
+    const csrfToken = setJwtCookie(req, res, result.user);
 
     return res.status(StatusCodes.CREATED).json({
-      user: result.user,
-      welcomeTasks: result.welcomeTasks,
-      transactionStatus: "success",
+      user: {
+        name: result.user.name,
+        email: result.user.email,
+      },
+      csrfToken,
     });
 
     } catch (err) {
@@ -153,12 +185,13 @@ const logon = async(req, res, next) => {
       });
     }
 
-    global.user_id = user.id;
+    const csrfToken = setJwtCookie(req, res, user);
+
 
     return res.status(StatusCodes.OK).json({
-      id: user.id,
       name:user.name,
       email: user.email,
+      csrfToken,
     });
   } catch (e) {
     return next(e);
@@ -167,7 +200,7 @@ const logon = async(req, res, next) => {
 
 
 const logoff = (req, res) => {
-    global.user_id = null;
+    res.clearCookie("jwt", cookieFlags(req));
     res.sendStatus(StatusCodes.OK);
 };
 

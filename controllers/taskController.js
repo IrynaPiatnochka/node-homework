@@ -19,7 +19,7 @@ const create = async (req, res, next) => {
         title: value.title,
         isCompleted: value.isCompleted,
         priority: value.priority,
-        userId: global.user_id,
+        userId: req.user.id,
       },
       select: {
         id: true,
@@ -50,7 +50,7 @@ const index = async ( req, res, next) => {
     const skip = (page - 1) * limit;
 
     const whereClause = {
-      userId: global.user_id,
+      userId: req.user.id,
     };
 
     if (req.query.find) {
@@ -130,7 +130,7 @@ const show = async (req, res, next) => {
       where: {
         id_userId: {
           id: taskId,
-          userId: global.user_id,
+          userId: req.user.id,
         },
       },
       select: {
@@ -190,7 +190,7 @@ const bulkCreate = async (req, res, next) => {
         title: value.title,
         isCompleted: value.isCompleted,
         priority: value.priority,
-        userId: global.user_id,
+        userId: req.user.id,
       });
     }
 
@@ -232,7 +232,7 @@ const update = async (req, res, next) => {
       where: {
         id_userId: {
           id: taskId,
-          userId: global.user_id,
+          userId: req.user.id,
         },
       },
       data: value,
@@ -274,7 +274,7 @@ const deleteTask = async (req, res, next) => {
       where: {
         id_userId: {
           id: taskId,
-          userId: global.user_id,
+          userId: req.user.id,
         },
       },
       select: {
