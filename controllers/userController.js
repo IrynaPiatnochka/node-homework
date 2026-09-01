@@ -122,10 +122,8 @@ const register = async (req, res, next) => {
     const csrfToken = setJwtCookie(req, res, result.user);
 
     return res.status(StatusCodes.CREATED).json({
-      user: {
-        name: result.user.name,
-        email: result.user.email,
-      },
+      name: result.user.name,
+      email: result.user.email,
       csrfToken,
     });
 
