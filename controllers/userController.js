@@ -49,32 +49,82 @@ const comparePassword = async(inputPassword, storedHash) => {
   return crypto.timingSafeEqual(keyBuffer, derivedKey);
 }
 
+
 const register = async (req, res, next) => {
-    if (!req.body) req.body = {};
-    const { error, value } = userSchema.validate(req.body, { abortEarly: false });
-    if (error) return res.status(400).json({ message: error.message });
+  if (!req.body) req.body = {};
+
+  try {
+    // Verify that the request is from a person
+    let isPerson = false;
+
+    if (req.body.recaptchaToken) {
+      const token = req.body.recaptchaToken;
+
+      const params = new URLSearchParams();
+      params.append("secret", process.env.RECAPTCHA_SECRET);
+      params.append("response", token);
+      params.append("remoteip", req.ip);
+
+      const response = await fetch(
+        "https://www.google.com/recaptcha/api/siteverify",
+        {
+          method: "POST",
+          body: params.toString(),
+          headers: {
+            "Content-Type": "application/x-www-form-urlencoded",
+          },
+        },
+      );
+
+      const data = await response.json();
+
+      if (data.success) isPerson = true;
+
+      // Remove the token before validating the user data
+      delete req.body.recaptchaToken;
+    } else if (
+      process.env.RECAPTCHA_BYPASS &&
+      req.get("X-Recaptcha-Test") === process.env.RECAPTCHA_BYPASS
+    ) {
+      // Allow Postman and Jest tests to bypass reCAPTCHA
+      isPerson = true;
+    }
+
+    if (!isPerson) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        message:
+          "Bot verification failed. Please complete the reCAPTCHA.",
+      });
+    }
+
+    // Validate the user data after reCAPTCHA verification
+    const { error, value } = userSchema.validate(req.body, {
+      abortEarly: false,
+    });
+
+    if (error) {
+      return res.status(400).json({ message: error.message });
+    }
 
     const { name, email, password } = value;
 
     const hashedPassword = await hashPassword(password);
 
-    try {
-      const result = await prisma.$transaction(async (tx) => {
-        const user = await tx.user.create({
-          data: {
-            name,
-            email,
-            hashedPassword,
-          },
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            createdAt: true,
-          },
-        });
+    const result = await prisma.$transaction(async (tx) => {
+      const user = await tx.user.create({
+        data: {
+          name,
+          email,
+          hashedPassword,
+        },
+        select: {
+          id: true,
+          name: true,
+          email: true,
+          createdAt: true,
+        },
+      });
 
-        
       const welcomeTaskData = [
         {
           title: "Complete your profile",
@@ -118,27 +168,26 @@ const register = async (req, res, next) => {
         welcomeTasks,
       };
     });
-    
+
     const csrfToken = setJwtCookie(req, res, result.user);
 
     return res.status(StatusCodes.CREATED).json({
-      name: result.user.name,
-      email: result.user.email,
+      user: result.user,
       csrfToken,
     });
-
-    } catch (err) {
-      if (
-        err.name === "PrismaClientKnownRequestError" && err.code === "P2002")
-      {
-        return res.status(StatusCodes.BAD_REQUEST).json({
-          error: "Email already registered",
-        });
-      }
-
-      return next(err);
+  } catch (err) {
+    if (
+      err.name === "PrismaClientKnownRequestError" &&
+      err.code === "P2002"
+    ) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "Email already registered",
+      });
     }
-  };
+
+    return next(err);
+  }
+};
 
 
 const logon = async(req, res, next) => {

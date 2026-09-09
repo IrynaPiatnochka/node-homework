@@ -61,6 +61,9 @@ describe("testing logon, register, and logoff", () => {
         email: "bob@sample.com",
         password: "Pa$$word20",
       },
+      headers: {
+        "X-Recaptcha-Test": process.env.RECAPTCHA_BYPASS,
+      },
     });
 
     registerRes = MockResponseWithCookies();
@@ -104,7 +107,7 @@ it("36. The JWT cookie contains HttpOnly", () => {
 it("37. The returned data has the expected name", () => {
   saveData = registerRes._getJSONData();
 
-  expect(saveData.name).toBe("Bob");
+  expect(saveData.user.name).toBe("Bob");
 });
 
 it("38. The returned data contains a csrfToken", () => {
@@ -156,6 +159,9 @@ it("42. You can't register with an email address that is already registered", as
       name: "Bob Again",
       email: "bob@sample.com",
       password: "Pa$$word20",
+    },
+    headers: {
+      "X-Recaptcha-Test": process.env.RECAPTCHA_BYPASS,
     },
   });
 
