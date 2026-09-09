@@ -82,6 +82,12 @@ const index = async ( req, res, next) => {
       },
     });
 
+    if (tasks.length === 0) {
+      return res.status(StatusCodes.NOT_FOUND).json({
+        error: "Tasks not found",
+      });
+    }
+
     const totalTasks = await prisma.task.count({
       where: whereClause,
     });
