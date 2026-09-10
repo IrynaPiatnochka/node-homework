@@ -26,12 +26,15 @@ describe("register a user ", () => {
       email: "jdeere@example.com",
       password: "Pa$$word20",
     };
-    saveRes = await agent.post("/api/users/register").send(newUser);
+    saveRes = await agent
+      .post("/api/users/register")
+      .set("X-Recaptcha-Test", process.env.RECAPTCHA_BYPASS)
+      .send(newUser);
     expect(saveRes.status).toBe(201);
   });
 
   it("47. registration returns the expected name", () => {
-    expect(saveRes.body.name).toBe("John Deere");
+    expect(saveRes.body.user.name).toBe("John Deere");
   });
 
   it("48. registration returns a csrfToken", () => {
