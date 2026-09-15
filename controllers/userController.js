@@ -11,7 +11,8 @@ const scrypt = util.promisify(crypto.scrypt);
 
 const googleClient = new OAuth2Client(
   process.env.GOOGLE_CLIENT_ID,
-  process.env.GOOGLE_CLIENT_SECRET
+  process.env.GOOGLE_CLIENT_SECRET,
+  "postmessage"
 );
 
 const cookieFlags = (req) => {
@@ -236,7 +237,6 @@ const logon = async(req, res, next) => {
 
     const csrfToken = setJwtCookie(req, res, user);
 
-
     return res.status(StatusCodes.OK).json({
       name:user.name,
       email: user.email,
@@ -279,6 +279,8 @@ const googleLogon = async (req, res, next) => {
     if (existingUser) {
       const csrfToken = setJwtCookie(req, res, existingUser);
 
+
+      console.log(csrfToken)
       return res.status(StatusCodes.OK).json({
         name: existingUser.name,
         email: existingUser.email,
@@ -307,14 +309,14 @@ const googleLogon = async (req, res, next) => {
       email: newUser.email,
       csrfToken,
     });
+    
+  } catch (e) {
+    return next(e);
+  }
+};
 
-      } catch (e) {
-        return next(e);
-      }
-    };
 
-
-const logoff = (req, res) => {
+  const logoff = (req, res) => {
     res.clearCookie("jwt", cookieFlags(req));
     res.sendStatus(StatusCodes.OK);
 };
