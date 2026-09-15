@@ -3,15 +3,21 @@ const { StatusCodes } = require("http-status-codes");
 const prisma = require("../db/prisma");
 const { randomUUID } = require("crypto");
 const jwt = require("jsonwebtoken");
+const { OAuth2Client } = require("google-auth-library");
 
 const crypto = require("crypto");
 const util = require("util");
 const scrypt = util.promisify(crypto.scrypt);
 
+const googleClient = new OAuth2Client(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET
+);
+
 const cookieFlags = (req) => {
   return {
     httpOnly: true,
-    secure: process.env.NODE_ENV === "production", // only when HTTPS is available
+    secure: process.env.NODE_ENV === "production", 
     sameSite: "Strict",
   };
 };
@@ -54,7 +60,6 @@ const register = async (req, res, next) => {
   if (!req.body) req.body = {};
 
   try {
-    // Verify that the request is from a person
     let isPerson = false;
 
     if (req.body.recaptchaToken) {
@@ -80,13 +85,11 @@ const register = async (req, res, next) => {
 
       if (data.success) isPerson = true;
 
-      // Remove the token before validating the user data
       delete req.body.recaptchaToken;
     } else if (
       process.env.RECAPTCHA_BYPASS &&
       req.get("X-Recaptcha-Test") === process.env.RECAPTCHA_BYPASS
     ) {
-      // Allow Postman and Jest tests to bypass reCAPTCHA
       isPerson = true;
     }
 
@@ -97,7 +100,6 @@ const register = async (req, res, next) => {
       });
     }
 
-    // Validate the user data after reCAPTCHA verification
     const { error, value } = userSchema.validate(req.body, {
       abortEarly: false,
     });
@@ -246,9 +248,75 @@ const logon = async(req, res, next) => {
 };
 
 
+const googleLogon = async (req, res, next) => {
+  try {
+    const { code } = req.body;
+
+    if (!code) {
+      return res.status(StatusCodes.BAD_REQUEST).json({
+        error: "Authorization code is required",
+      });
+    }
+
+    const { tokens } = await googleClient.getToken(code);
+
+    const ticket = await googleClient.verifyIdToken({
+      idToken: tokens.id_token,
+      audience: process.env.GOOGLE_CLIENT_ID,
+    });
+
+    const payload = ticket.getPayload();
+
+    const name = payload.name;
+    const email = payload.email;
+
+    const existingUser = await prisma.user.findUnique({
+      where: {
+        email: email.toLowerCase(),
+      },
+    });
+
+    if (existingUser) {
+      const csrfToken = setJwtCookie(req, res, existingUser);
+
+      return res.status(StatusCodes.OK).json({
+        name: existingUser.name,
+        email: existingUser.email,
+        csrfToken,
+          });
+    }
+
+    const newUser = await prisma.user.create({
+      data: {
+        name,
+        email: email.toLowerCase(),
+        hashedPassword: "oauth-user",
+      },
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        createdAt: true,
+      },
+    });
+
+    const csrfToken = setJwtCookie(req, res, newUser);
+
+    return res.status(StatusCodes.OK).json({
+      name: newUser.name,
+      email: newUser.email,
+      csrfToken,
+    });
+
+      } catch (e) {
+        return next(e);
+      }
+    };
+
+
 const logoff = (req, res) => {
     res.clearCookie("jwt", cookieFlags(req));
     res.sendStatus(StatusCodes.OK);
 };
 
-module.exports = { register, logon, logoff };
+module.exports = { register, logon, googleLogon, logoff };
